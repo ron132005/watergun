@@ -121,7 +121,6 @@ const appState = process.env.APPSTATE;
 let currentStopListener = null;
 
 function startLogin() {
-  // Stop any existing listener + timers before re-logging in
   if (currentStopListener) {
     try { currentStopListener(); } catch (e) {}
     currentStopListener = null;
@@ -141,21 +140,11 @@ function startLogin() {
     }, 8 * 60 * 60 * 1000);
     // --------------------------------------------
 
-    // Tracks the currently active MQTT stop function
-    let mqttStopFn = null;
-
     // --- MQTT LISTENER WITH AUTO-RESTART ON FAILURE ---
     function startListening() {
-      // Always stop the previous MQTT listener before creating a new one
-      if (mqttStopFn && typeof mqttStopFn === "function") {
-        try { mqttStopFn(); } catch (e) {}
-        mqttStopFn = null;
-      }
-
       const stopListener = api.listenMqtt(async (err, event) => {
         if (err) {
           console.error("MQTT error, restarting in 5s:", err);
-          mqttStopFn = null; // Already broken, clear the reference
           setTimeout(startListening, 5000);
           return;
         }
@@ -225,16 +214,9 @@ function startLogin() {
         }
       });
 
-      // Store the new stop function
-      mqttStopFn = typeof stopListener === "function" ? stopListener : null;
-
-      // Update the outer stop handle to clean up both timer and MQTT
       currentStopListener = () => {
         clearTimeout(loginRestartTimer);
-        if (mqttStopFn && typeof mqttStopFn === "function") {
-          try { mqttStopFn(); } catch (e) {}
-          mqttStopFn = null;
-        }
+        if (typeof stopListener === "function") stopListener();
       };
     }
 
@@ -244,3 +226,9 @@ function startLogin() {
 
 startLogin();
 // ----------------------------------------------
+
+// --- EXIT AFTER 5 HOURS (Render will auto-restart) ---
+setTimeout(() => {
+  console.log("5-hour uptime limit reached. Exiting for clean restart...");
+  process.exit(0);
+}, 5 * 60 * 60 * 1000);
