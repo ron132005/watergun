@@ -1,7 +1,7 @@
 const { Mistral } = require("@mistralai/mistralai");
 
 const mistral = new Mistral({
-  apiKey: process.env.MISTRAL_API_KEY || "ChyRy431UGbOG5lrDjAoAhcTfqY9wPZC",
+  apiKey: process.env.MISTRAL_API_KEY || "k4jPtVCCTupFcIFqr7BGDfJNmoqgoS8k",
 });
 
 module.exports = async function (api, event) {
