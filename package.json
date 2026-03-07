@@ -7,7 +7,7 @@
     "start": "pm2 start a.js --name fbot --node-args='--max-old-space-size=256 --enable-source-maps' --restart-delay 1000 --cron-restart='0 */5 * * *'"
   },
   "dependencies": {
-    "@dongdev/fca-unofficial": "^3.0.29",
+    "@dongdev/fca-unofficial": "^3.0.30",
     "@heyputer/puter.js": "^2.2.2",
     "@mistralai/mistralai": "^1.11.0",
     "googlethis": "^1.8.0",
