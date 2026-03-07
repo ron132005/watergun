@@ -59,7 +59,7 @@ module.exports = async function (api, event) {
     try {
       const audioObj = await puter.ai.txt2speech(replyText, {
         provider: "openai",
-        model: "tts-1-hd",
+        model: "tts-1",
         voice: "alloy",
         response_format: "mp3",
       });
