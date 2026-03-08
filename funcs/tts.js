@@ -19,7 +19,7 @@ const mistral = new Mistral({
   apiKey: process.env.MISTRAL_API_KEY,
 });
 const puter = init(
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoiYXUiLCJ2IjoiMC4wLjAiLCJ1dSI6InhaYXp1QVYxUVZ5ZzUzU1JpYzNDQ0E9PSIsImF1IjoiaWRnL2ZEMDdVTkdhSk5sNXpXUGZhUT09IiwicyI6IjEwMFlCWlIxdWlEVENCSUg2bHhPZWc9PSIsImlhdCI6MTc2NzE1NTY3OH0.is6X4pZD-J671mJiNmJFChB-ZgBzJpvzAgKl4-bpYM4",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoiYXUiLCJ2IjoiMC4wLjAiLCJ1dSI6IjhCN0FNbis2UmdxbE8xVzVETEVuU1E9PSIsImF1IjoiaWRnL2ZEMDdVTkdhSk5sNXpXUGZhUT09IiwicyI6IlE5eGFwUE1vaStkc3dJSFMzQ0dMdVE9PSIsImlhdCI6MTc2NzA2Mjk1OH0.72pteHPSuSEX0atTZrJrG_SnUpozp0DbYnYLV55HwUc",
 );
 // Create temp dir once at module load
 const tempDir = path.join(__dirname, "..", "temp", "audio");
