@@ -62,11 +62,18 @@ const messages = [
 ];
 
 const LIMIT = 25 * 1024 * 1024; // 25MB
+const MAX_DURATION_SECONDS = 600; // 10 minutes
 
 const dirPath = path.join(__dirname, "..", "temp", "song");
-if (!fs.existsSync(dirPath)) {
-  fs.mkdirSync(dirPath, { recursive: true });
-}
+fs.mkdirSync(dirPath, { recursive: true }); // idempotent, no existsSync needed
+
+const parseDuration = (timestamp) => {
+  if (!timestamp) return 0;
+  const parts = timestamp.split(":").map(Number); // Number() is faster than parseInt
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return 0;
+};
 
 module.exports = async function (api, event) {
   const { threadID, messageID, body } = event;
@@ -76,39 +83,41 @@ module.exports = async function (api, event) {
     return api.sendMessage("⚠️ Usage: /song [name]", threadID, messageID);
   }
 
-  const mp3Path = path.join(dirPath, `song_${Date.now()}.mp3`);
+  const mp3Path = path.join(dirPath, `song_${Date.now()}.m4a`);
   const randomMessage = messages[Math.floor(Math.random() * messages.length)];
 
-  // Helper to safely delete the temp file
-  const cleanup = () => {
-    if (fs.existsSync(mp3Path)) fs.rm(mp3Path, () => {});
-  };
+  // fs.rm handles missing files gracefully — no existsSync needed
+  const cleanup = () => fs.rm(mp3Path, () => {});
 
   try {
-    // Fire status message and metadata fetch in parallel
-    const [, { data }] = await Promise.all([
+    // Fire status message and search fetch in parallel
+    const [, searchResponse] = await Promise.all([
       api.sendMessage(`⏳ ${randomMessage}`, threadID, messageID),
       axios.get(
-        `https://betadash-api-swordslush-production.up.railway.app/spt?title=${encodeURIComponent(query)}`,
+        `https://mostakim.onrender.com/mostakim/ytSearch?search=${encodeURIComponent(query)}`,
         { timeout: 60000 },
       ),
     ]);
 
-    if (!data || !data.download_url) {
-      throw new Error("Invalid API response");
-    }
+    const filteredVideos = searchResponse.data.filter(
+      (video) => parseDuration(video.timestamp) < MAX_DURATION_SECONDS,
+    );
 
-    const title = data.title || "Unknown Title";
-    const artist = data.artists || "Unknown Artist";
+    if (!filteredVideos.length) throw new Error("NO_RESULTS");
 
-    // Convert duration from ms to MM:SS
-    const durationMs = Number(data.duration) || 0;
-    const totalSeconds = Math.floor(durationMs / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = String(totalSeconds % 60).padStart(2, "0");
+    const selectedVideo = filteredVideos[0];
+    const title = selectedVideo.title || "Unknown Title";
+    const duration = selectedVideo.timestamp || "0:00";
 
-    // Stream the MP3 directly to disk, abort if it exceeds 25MB
-    const audioRes = await axios.get(data.download_url, {
+    const apiResponse = await axios.get(
+      `https://mostakim.onrender.com/m/sing?url=${encodeURIComponent(selectedVideo.url)}`,
+      { timeout: 60000 },
+    );
+
+    if (!apiResponse.data?.url) throw new Error("Invalid API response");
+
+    // Stream directly to disk, abort early if over 25MB
+    const audioRes = await axios.get(apiResponse.data.url, {
       responseType: "stream",
       timeout: 0,
       headers: { "User-Agent": "Mozilla/5.0" },
@@ -132,10 +141,9 @@ module.exports = async function (api, event) {
       writer.on("error", reject);
     });
 
-    // Send metadata + audio
     api.sendMessage(
       {
-        body: `🎧 𝑨.𝑹.𝑰.𝑺.𝑶.𝑵 𝑺𝑷𝑬𝑨𝑲𝑬𝑹𝑺\n\n🎵 Title: ${title}\n🎤 Artist: ${artist}\n🕒 Duration: ${minutes}:${seconds}`,
+        body: `🎧 𝑨.𝑹.𝑰.𝑺.𝑶.𝑵 𝑺𝑷𝑬𝑨𝑲𝑬𝑹𝑺\n\n🎵 Title: ${title}\n🕒 Duration: ${duration}`,
         attachment: fs.createReadStream(mp3Path),
       },
       threadID,
@@ -149,6 +157,14 @@ module.exports = async function (api, event) {
     if (err.message === "FILE_TOO_LARGE") {
       return api.sendMessage(
         "❌ File exceeds 25MB limit. Try a shorter track.",
+        threadID,
+        messageID,
+      );
+    }
+
+    if (err.message === "NO_RESULTS") {
+      return api.sendMessage(
+        "❌ No results found under 10 minutes. Try a different query.",
         threadID,
         messageID,
       );
